@@ -1,0 +1,14 @@
+runtime/
+run_*/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+node_modules/
+*.zip
