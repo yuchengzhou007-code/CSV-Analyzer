@@ -2,10 +2,12 @@
 
 本地 Post-Silicon Ring Oscillator 分析平台。以单份 `analysis_1.csv` 参数矩阵为数据输入，支持不同 Function、VT、Drive、Cell height 与 Voltage 的比较。
 
-## 功能
+## 功能（v3）
 
-- 箱线图与 P-plot 并列，支持 frequency、silicon/simulation ratio、频率偏差。
-- 同一 cell 跨电压的分布与 voltage sweep，支持配对 die。
+- 箱线图与 P-plot 并列，支持 **Simulation、Measure、Ratio、Deviation** 四种 metric。
+- Function、VT、Drive、Cell height、Voltage 均可独立多选，支持搜索、全选、清空和会话内记忆。
+- Group by 控制主排列维度；按完整 cell/voltage 配置分别统计，不跨配置混样。例如 2 个 function × 3 个 VT × 2 个 drive 可得到 12 个独立分组。
+- 同一 cell 跨电压的分布与 voltage sweep，按每个 cell 分别求所选电压共有的配对 die；多 cell 选择时以完整配置分布对比。
 - Wafer view、固定色阶、die 选择联动。
 - CSV 与 SVG 导出、输入 ratio 核对。
 

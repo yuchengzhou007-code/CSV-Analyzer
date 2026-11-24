@@ -2,6 +2,7 @@ const get = id => document.getElementById(id);
 const keyOf = row => `${row.lot_id}/${row.wafer_id}/${row.die_id}`;
 const waferOf = row => JSON.stringify([row.lot_id, row.wafer_id]);
 const METRICS = {
+  simulation: { field: 'simulation_frequency_mhz', label: 'Simulation frequency (MHz)', digits: 2 },
   ratio: { field: 'silicon_sim_ratio', label: 'Silicon / Simulation ratio', digits: 4 },
   frequency: { field: 'silicon_mean_frequency_mhz', label: 'Silicon frequency (MHz)', digits: 2 },
   deviation: { field: 'frequency_deviation_pct', label: 'Frequency deviation (%)', digits: 2 },
@@ -34,6 +35,8 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     <section class="wafer-detail-card"><h3>Selected die</h3><label class="wafer-die-label">DIE<select id="wafer-die"></select></label><dl id="wafer-selected"></dl><div class="wafer-detail-actions"><button id="wafer-clear">清除</button><button id="wafer-distribution">查看分布图</button></div></section></aside></div>
     <p class="wafer-footnote" id="wafer-condition"></p><p class="wafer-footnote">色深表示数值大小，不代表合格判定。空间模式需结合供电、温度、位置和工艺证据验证。</p>`;
   let rows = [], minimum = 0, maximum = 1, lastMetric = 'ratio', selected = readSelection();
+  get('wafer-metric').querySelector('option[value="frequency"]').textContent = 'Measure · MHz';
+  get('wafer-metric').add(new Option('Simulation · MHz', 'simulation'));
   const heightLabel = document.createElement('label'); heightLabel.innerHTML = 'CELL HEIGHT<select id="wafer-height"></select>';
   container.querySelector('.wafer-filters').append(heightLabel);
   const metric = () => METRICS[get('wafer-metric').value];
@@ -118,8 +121,8 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     get('wafer-scale-status').textContent = `${lock ? '固定色阶' : '自动色阶，仅适用于当前 cell'}${outside ? `；${outside} 个值超出范围，使用端点颜色` : ''}`;
     get('wafer-scale-low').textContent = minimum.toFixed(config.digits); get('wafer-scale-high').textContent = maximum.toFixed(config.digits);
     const xs = allCoordinates.map(row => row.wafer_x).filter(Number.isFinite), ys = allCoordinates.map(row => row.wafer_y).filter(Number.isFinite);
-    const xLow = Math.min(...xs), xHigh = Math.max(...xs), yLow = Math.min(...ys), yHigh = Math.max(...ys);
     const uniqueX = [...new Set(xs)].sort((first, second) => first - second), uniqueY = [...new Set(ys)].sort((first, second) => first - second);
+    const xLow = uniqueX[0], xHigh = uniqueX.at(-1), yLow = uniqueY[0], yHigh = uniqueY.at(-1);
     const pitch = values => values.length < 2 ? 1 : Math.min(...values.slice(1).map((value, index) => value - values[index]));
     const pitchX = pitch(uniqueX), pitchY = pitch(uniqueY);
     const scale = Math.min(530 / (xHigh - xLow + 2 * pitchX), 485 / (yHigh - yLow + 2 * pitchY));

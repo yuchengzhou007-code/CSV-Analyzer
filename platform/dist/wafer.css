@@ -1,5 +1,12 @@
 [hidden]{display:none!important}
 .mobile-views{display:none}
+.group-picker{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:16px 0}
+.group-picker-heading{display:flex;justify-content:space-between;align-items:center;gap:15px}.group-picker-heading p{font-size:.8125rem;color:#69788d;margin:7px 0 0}.group-picker-heading>span{font-size:.875rem;color:#426b9d;white-space:nowrap}
+.group-picker-tools{display:flex;gap:9px;flex-wrap:wrap;margin:16px 0 12px}.group-picker-tools input{font:inherit;font-size:.875rem;border:1px solid #dce3ed;border-radius:6px;padding:9px 11px;min-width:140px;flex:1}.group-picker-tools button{font-size:.8125rem}
+#picker-dimension{min-width:145px}
+#group-options{display:flex;gap:9px;flex-wrap:wrap;max-height:185px;overflow:auto;border:0;padding:2px;margin:0}#group-options label{display:flex;align-items:center;gap:8px;border:1px solid #e1e8f1;border-radius:6px;padding:9px 12px;font-size:.875rem;cursor:pointer}#group-options label:has(input:checked){background:#f0f6fe;border-color:#a5c3eb}#group-options input{width:16px;height:16px;accent-color:#2865c5;margin:0}#group-search-empty{font-size:.875rem;color:#69788d}
+.box-scroll{max-height:540px;overflow:auto}
+@media(max-width:850px){.group-picker-heading{align-items:flex-start}.group-picker{padding:15px}.group-picker-tools input{flex-basis:100%}}
 .filters[aria-label="分析筛选"]{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
 .filters[aria-label="分析筛选"] label{min-width:0!important}
 .filters[aria-label="分析筛选"] .filter-divider{display:none}

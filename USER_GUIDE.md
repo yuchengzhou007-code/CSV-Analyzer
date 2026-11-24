@@ -1,6 +1,6 @@
 # Silicon Lab — analysis_1.csv 单输入便携版
 
-版本：2026-11-24 matrix v1。本包已经支持 Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
+版本：2026-11-25 matrix v3。本包支持 Simulation/Measure/Ratio/Deviation 四种metric、跨维度组合多选、Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
 
 **每次只读取一份输入文件：包根目录的 analysis_1.csv。** 不需要其他原始 CSV、PID 对照表、配置 JSON 或之前生成的汇总。内置文件是72 die、两种height、四电压的示例；H300的性能差异为人为设定，不能作为真实工艺结论。
 
@@ -105,17 +105,27 @@ ND2_SVT_D1_H243_0P75V_Ratio,,%,,,101.10,101.10,101.10
 
 ## 4. 分析页面
 
+### 勾选要比较的类别
+
+Group by 选择主要排列维度。在“选择要比较的…”面板的维度下拉框里依次选择 Function、VT、Drive、Cell height、Voltage，分别勾选各维度需要的值。所有维度均可同时多选；顶部字段显示各维度当前选择摘要。可搜索、全选、清空，或“勾选搜索结果”（追加匹配项）。搜索本身只筛选候选列表。
+
+例如 Group by=Function，勾选ND2/NR2、SVT/LVT/ULVT、D1/D2，并只选H243和0.8V：得到2×3×2=12组，每组保留独立die分布，不把三个VT或两个drive混进同一个function箱体。统计、图例和CSV均使用完整配置标签。缺测组合不会补造。
+
+各维度会记住用户明确修改过的选择；切换Group by不会清除这些选择。未手动修改的维度会采用便于单维比较的默认值：主维度全选、其余维度各一个默认值。“重置视图”恢复VT全选、其余维度默认单值。有任何维度空选时不绘图、不允许导出。颜色依据完整配置稳定生成。选择仅在页面会话中生效，不修改输入CSV。
+
+Voltage 模式的完整配对只要求“勾选的电压”都有数据，未选电压的缺测不会排除当前die。较多类别的箱线图支持滚动，SVG导出包含完整高度。关闭页面后再次启动会恢复默认选择，不保存到输入CSV。
+
 ### 比较 height
 
-Group by 选择 **Cell height**，固定 Function、VT、Drive 和 Voltage。左侧箱线图，右侧P-plot；Metric可选Frequency、Ratio、Deviation。点击点或从下拉选择die可跨图高亮。
+Group by 选择 **Cell height**，按需勾选其他维度。左侧箱线图，右侧P-plot；Metric可选Simulation、Measure、Ratio、Deviation。两个频率metric均以MHz展示。点击点或从下拉选择die可跨图高亮。
 
 ### 同 height 跨 voltage
 
-Group by 选择 **Voltage**，固定cell height、Function、VT、Drive，再确认RO。默认比较所有电压共有的同一批die；关闭配对选项可看每个电压的所有可用样本，留意n的变化。下面的sweep连接同一die的观测点，不拟合或外推。
+Group by 选择 **Voltage**。可同时选择多个cell，但每个cell分别求勾选电压共有die的交集，互不影响。关闭配对选项可看所选各电压的所有可用样本，留意n。只有单一cell时显示sweep曲线；多cell时使用各完整配置的分布对比，避免画成一条错误的跨cell曲线。
 
 ### 比较 VT / Function / Drive
 
-Group by选择相应维度，固定其他维度，尤其注意height和voltage。平台按输入数据生成可选枚举；若某组合未测，显示无数据，不用其他组合补齐。
+Group by选择相应维度，其余维度可单选或多选。平台按输入数据生成可选枚举；未测组合不会由其他组合补齐。
 
 ### Wafer view
 
