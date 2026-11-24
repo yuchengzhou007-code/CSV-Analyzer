@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Silicon Lab · Distribution Explorer</title>
+  <meta name="description" content="Ring oscillator silicon-to-model distribution analysis">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="wafer.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="./"><span class="chip">S</span><span>Silicon Lab<small>POST-SILICON ANALYSIS</small></span></a>
+    <div class="nav-label">WORKSPACE</div>
+    <button class="nav active" id="distribution-nav">▥ <span>Distribution explorer</span></button>
+    <button class="nav" id="wafer-nav">◉ <span>Wafer view</span></button>
+    <button class="nav" id="quality-open">☷ <span>Data quality</span><span class="count">0</span></button>
+    <div class="sidebar-note"><span class="dataset-icon">◈</span><strong>RO characterization</strong><p>72 die · 126 RO types<br>1 synthetic wafer</p><span class="tag">SYNTHETIC DATA</span></div>
+    <div class="sidebar-footer">LOCAL WORKSPACE <span>v0.1</span></div>
+  </aside>
+  <main>
+    <header><span>Workspace <span class="slash">/</span> RO characterization</span><span class="environment">0.80 V <span>·</span> 25°C <span>·</span> TT_SYNTHETIC</span></header>
+    <div class="mobile-views"><button id="mobile-distribution">Distribution</button><button id="mobile-wafer">Wafer view</button></div>
+    <div id="distribution-content">
+    <section class="intro"><div><div class="eyebrow">DISTRIBUTION ANALYSIS</div><h1>Distribution explorer</h1><p>在同一视图中对比中心、离散与尾部，追溯到每一个 die。</p></div><div class="actions"><button id="reset">重置视图</button><button id="export-csv" class="primary">导出数据 CSV</button></div></section>
+    <section class="filters" aria-label="分析筛选"><label>GROUP BY<select id="group"><option value="vt">VT</option><option value="function">Function</option><option value="drive">Drive</option><option value="vdd_v">Voltage</option></select></label><label>FUNCTION<select id="function"></select></label><label>VT<select id="vt"></select></label><label>DRIVE<select id="drive"></select></label><label>VOLTAGE<select id="vdd_v"></select></label><div class="filter-divider"></div><label class="metric-control">METRIC<select id="metric"><option value="ratio">Ratio · Silicon / Simulation</option><option value="frequency">Frequency · MHz</option><option value="deviation">Frequency deviation · %</option></select></label><label>PROBABILITY AXIS<select id="probability"><option value="normal">Normal probability</option><option value="linear">Linear cumulative</option></select></label></section>
+    <div id="voltage-controls" class="voltage-controls" hidden><label>同一 RO<select id="voltage-ro"></select></label><label class="paired-toggle"><input type="checkbox" id="voltage-paired" checked>仅比较所有电压都有数据的同一批 die</label><span id="voltage-coverage"></span></div>
+    <p id="distribution-empty" role="alert" hidden></p>
+    <section class="metrics"><div><span>INDEPENDENT DIE</span><strong id="die-count">—</strong><small>同一批 die，跨组配对</small></div><div><span>COMPARISON GROUPS</span><strong id="group-count">—</strong><small id="group-description">按 VT 分组</small></div><div><span>DIE / RO OBSERVATIONS</span><strong id="observation-count">—</strong><small>每个点为重复读数的均值</small></div><div><span>MEDIAN RATIO RANGE</span><strong id="median-range">—</strong><small>各组中位数的范围</small></div></section>
+    <section class="comparison"><div><h2 id="comparison-title">VT comparison</h2><span id="fixed-description"></span></div><div class="selection"><label for="die-select">高亮 die</label><select id="die-select"><option value="">未选择</option></select><button id="clear-selection">清除</button></div></section>
+    <section class="charts"><article class="chart-card"><div class="chart-title"><div><h3>Box plot</h3><p>中位数 · 中间 50% · 全部 die 均值</p></div><span class="badge">1.5 × IQR</span></div><svg id="box-chart" viewBox="0 0 610 370" role="img" aria-label="横向箱线图"></svg></article><article class="chart-card"><div class="chart-title"><div><h3 id="p-title">Normal probability plot</h3><p>横向位置看性能，横向跨度看离散</p></div><span class="badge" id="probability-badge">NORMAL SCALE</span></div><svg id="probability-chart" viewBox="0 0 610 370" role="img" aria-label="累计概率图"></svg></article></section>
+    <div id="legend" class="legend" aria-label="分组图例"></div>
+    <div class="plot-note"><span>ⓘ</span><p id="plot-note">正在读取样例数据…</p><button id="export-svg">导出图形 SVG</button></div>
+    <article id="voltage-sweep-card" class="chart-card voltage-sweep-card" hidden><div class="chart-title"><div><h3>Voltage sweep</h3><p>浅线连接同一 die 的实测点；深线为各电压中位数，无拟合或外推。</p></div><button id="voltage-sweep-export">导出 sweep SVG</button></div><svg id="voltage-sweep" viewBox="0 0 1100 300" role="img" aria-label="同一 cell 跨电压曲线"></svg></article>
+    <section class="summary"><div class="summary-heading"><div><h2>Group statistics</h2><p id="selection-detail">悬浮查看点位，点击锁定同一 die 的跨图高亮。</p></div><span id="condition-label"></span></div><div class="table-scroll"><table><thead><tr><th>GROUP</th><th>DIE N</th><th>MEDIAN</th><th>P10</th><th>P90</th><th>STD DEV</th><th>CV (%)</th><th id="selected-column">SELECTED DIE</th></tr></thead><tbody id="stats-body"></tbody></table></div></section>
+    </div>
+    <section id="wafer-content" hidden></section>
+    <footer><span id="source-label"></span><span>Sample-based distributions · No tail extrapolation</span></footer>
+    <div id="loading-error" role="alert" hidden></div>
+  </main>
+  <div id="tooltip" role="tooltip" hidden></div><div id="announcer" class="sr-only" aria-live="polite"></div>
+  <dialog id="quality-dialog"><div class="dialog-heading"><div><span class="eyebrow">IMPORT VALIDATION</span><h2>Data quality</h2></div><button id="quality-close" aria-label="关闭">关闭</button></div><div id="quality-content"></div></dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
