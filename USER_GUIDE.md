@@ -1,6 +1,10 @@
 # Silicon Lab — analysis_1.csv 单输入便携版
 
-版本：2026-11-25 matrix v3。本包支持 Simulation/Measure/Ratio/Deviation 四种metric、跨维度组合多选、Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
+版本：2026-11-28 matrix v4.3。本包支持 Simulation/Measure/Ratio/Deviation 四种metric、下拉框内跨维度组合多选、Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
+
+点击 Function / VT / Drive / Cell height / Voltage 下拉框，直接在里面勾选多个值；支持搜索、全选、清空和勾选搜索结果。点击外部或按 Esc 收起，各维度可独立组合；完整配置分别成组。
+
+两页的 FREQUENCY UNIT 支持 Hz / kHz / MHz / GHz，默认 MHz。图轴、统计表、悬浮信息和 Wafer view 色阶使用所选单位；Ratio 和 Deviation 不受影响。频率采用有效数字显示，避免小频率显示成 0.00。输入始终按 CSV 的 Unit 字段解释，例如 800000000 Hz = 800 MHz；若原始数字实际是 MHz，Unit 也必须写 MHz。Wafer view 锁定色阶后切换单位会保持原来的物理范围。CSV 导出的频率字段仍为明确标注的 MHz，分布导出 value 对应 frequency/simulation 时也为 MHz；SVG 使用当前显示单位。
 
 **每次只读取一份输入文件：包根目录的 analysis_1.csv。** 不需要其他原始 CSV、PID 对照表、配置 JSON 或之前生成的汇总。内置文件是72 die、两种height、四电压的示例；H300的性能差异为人为设定，不能作为真实工艺结论。
 
@@ -13,6 +17,8 @@
 3. Windows 双击 `START_WINDOWS.bat`；macOS 双击 `START_MAC.command`。Linux 在终端执行 `sh START_LINUX.sh`。
 4. 程序处理 CSV 后自动打开本机网页。若没有自动打开，复制终端的 `Open:` 地址到浏览器。
 5. 使用期间保留终端窗口，按 Ctrl+C 停止。
+
+如果地址栏显示 `file://`，请点击页面上的「打开本地分析平台」，或打开终端的 `Open:` 地址。
 
 如果双击不便，直接在解压目录的终端运行：
 
@@ -107,17 +113,17 @@ ND2_SVT_D1_H243_0P75V_Ratio,,%,,,101.10,101.10,101.10
 
 ### 勾选要比较的类别
 
-Group by 选择主要排列维度。在“选择要比较的…”面板的维度下拉框里依次选择 Function、VT、Drive、Cell height、Voltage，分别勾选各维度需要的值。所有维度均可同时多选；顶部字段显示各维度当前选择摘要。可搜索、全选、清空，或“勾选搜索结果”（追加匹配项）。搜索本身只筛选候选列表。
+Group by 选择主要排列维度。直接打开 Function、VT、Drive、Cell height、Voltage 各自的下拉框，勾选需要的值。所有维度均可同时多选；字段显示当前选择摘要。可搜索、全选、清空，或“勾选搜索结果”（追加匹配项）。搜索本身只筛选候选列表。
 
 例如 Group by=Function，勾选ND2/NR2、SVT/LVT/ULVT、D1/D2，并只选H243和0.8V：得到2×3×2=12组，每组保留独立die分布，不把三个VT或两个drive混进同一个function箱体。统计、图例和CSV均使用完整配置标签。缺测组合不会补造。
 
-各维度会记住用户明确修改过的选择；切换Group by不会清除这些选择。未手动修改的维度会采用便于单维比较的默认值：主维度全选、其余维度各一个默认值。“重置视图”恢复VT全选、其余维度默认单值。有任何维度空选时不绘图、不允许导出。颜色依据完整配置稳定生成。选择仅在页面会话中生效，不修改输入CSV。
+无论 Group by 选哪一项，每个维度都可以单选、多选或全选，包括当前用来分组的维度。切换 Group by 会保留所有维度当前的勾选。要单选，可以先点「清空」再勾选一项。「重置视图」恢复 VT 全选、其余维度默认单值。有任何维度空选时不绘图、不允许导出。颜色依据完整配置稳定生成。选择仅在页面会话中生效。
 
-Voltage 模式的完整配对只要求“勾选的电压”都有数据，未选电压的缺测不会排除当前die。较多类别的箱线图支持滚动，SVG导出包含完整高度。关闭页面后再次启动会恢复默认选择，不保存到输入CSV。
+Voltage 模式的完整配对按勾选的电压检查覆盖率。超过 60 组时，箱线图、P-plot 和图例按页展示，各页使用统一坐标范围。SVG 导出当前图表页，统计表和 CSV 包含全部所选组。重新打开页面会恢复默认选择。
 
 ### 比较 height
 
-Group by 选择 **Cell height**，按需勾选其他维度。左侧箱线图，右侧P-plot；Metric可选Simulation、Measure、Ratio、Deviation。两个频率metric均以MHz展示。点击点或从下拉选择die可跨图高亮。
+Group by 选择 **Cell height**，按需勾选其他维度。左侧箱线图，右侧P-plot；Metric可选Simulation、Measure、Ratio、Deviation。两个频率metric采用 FREQUENCY UNIT 所选单位。点击点或从下拉选择die可跨图高亮。
 
 ### 同 height 跨 voltage
 
@@ -130,6 +136,8 @@ Group by选择相应维度，其余维度可单选或多选。平台按输入数
 ### Wafer view
 
 选择wafer、Function、VT、Drive、Voltage、Cell height和RO ID。颜色表示每个die的观测值。自动色阶用于当前配置；跨height/cell/voltage比较时锁定相同色阶。缺测留空，不做插值，坐标范围不代表晶圆真实边缘。
+
+Ratio 以 1.0 为中性浅灰。低于 1 越低越蓝，高于 1 越高越红。自动色阶始终显示 1.0；手动锁定时应满足 MIN < 1 < MAX。网页和 SVG 均显示同一色阶。
 
 所有图形可导出CSV或SVG。Data quality展示本次输入的观测数和核对结果。
 

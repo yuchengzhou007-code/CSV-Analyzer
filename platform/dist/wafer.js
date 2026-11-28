@@ -1,3 +1,4 @@
+import { frequencyText, metricLabel, metricNumber, mountFrequencyUnit, displayFrequency, storedFrequency, isFrequency } from './frequency.js';
 const get = id => document.getElementById(id);
 const keyOf = row => `${row.lot_id}/${row.wafer_id}/${row.die_id}`;
 const waferOf = row => JSON.stringify([row.lot_id, row.wafer_id]);
@@ -13,10 +14,29 @@ function element(tag, attributes = {}, text) {
   if (text !== undefined) node.textContent = text;
   return node;
 }
-function color(value, minimum, maximum) {
-  const fraction = Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
-  const low = [222, 238, 250], high = [26, 83, 164];
-  return `rgb(${low.map((component, index) => Math.round(component + fraction * (high[index] - component))).join(',')})`;
+const LIGHT_BLUE = [222, 238, 250];
+const BLUE = [26, 83, 164];
+const NEUTRAL = [245, 245, 245];
+const RED = [179, 30, 45];
+const rgb = channels => `rgb(${channels.join(',')})`;
+
+function colorScale(minimum, maximum, ratioMode) {
+  const center = (1 - minimum) / (maximum - minimum);
+  const stops = ratioMode
+    ? [[0, BLUE], [center, NEUTRAL], [1, RED]]
+    : [[0, LIGHT_BLUE], [1, BLUE]];
+  return {
+    stops,
+    tone(value) {
+      const position = Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
+      const segment = ratioMode && value > 1 ? 1 : 0;
+      const start = stops[segment], end = stops[segment + 1];
+      const fraction = (position - start[0]) / (end[0] - start[0]);
+      const channels = start[1].map((component, index) => Math.round(component + fraction * (end[1][index] - component)));
+      const darkness = ratioMode && segment === 0 ? 1 - fraction : fraction;
+      return { fill: rgb(channels), text: darkness > 0.56 ? '#ffffff' : '#27486a' };
+    },
+  };
 }
 function save(name, content, mime) {
   const url = URL.createObjectURL(new Blob([content], { type: mime }));
@@ -33,13 +53,29 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     <aside class="wafer-details"><section class="wafer-detail-card"><h3>Color scale</h3><label class="wafer-lock"><input id="wafer-lock" type="checkbox"> 锁定当前色阶，跨 cell 对比</label><div class="wafer-limits"><label>MIN<input id="wafer-min" type="number" step="any" disabled></label><label>MAX<input id="wafer-max" type="number" step="any" disabled></label></div><p id="wafer-scale-status">自动范围按当前 cell 计算</p><p id="wafer-range-error" role="alert" hidden></p></section>
     <section class="wafer-detail-card"><h3>Cell statistics</h3><dl id="wafer-statistics"></dl></section>
     <section class="wafer-detail-card"><h3>Selected die</h3><label class="wafer-die-label">DIE<select id="wafer-die"></select></label><dl id="wafer-selected"></dl><div class="wafer-detail-actions"><button id="wafer-clear">清除</button><button id="wafer-distribution">查看分布图</button></div></section></aside></div>
-    <p class="wafer-footnote" id="wafer-condition"></p><p class="wafer-footnote">色深表示数值大小，不代表合格判定。空间模式需结合供电、温度、位置和工艺证据验证。</p>`;
+    <p class="wafer-footnote" id="wafer-condition"></p><p class="wafer-footnote">空间模式需结合供电、温度、位置和工艺证据验证。</p>`;
   let rows = [], minimum = 0, maximum = 1, lastMetric = 'ratio', selected = readSelection();
-  get('wafer-metric').querySelector('option[value="frequency"]').textContent = 'Measure · MHz';
-  get('wafer-metric').add(new Option('Simulation · MHz', 'simulation'));
+  get('wafer-metric').querySelector('option[value="frequency"]').textContent = 'Measure';
+  get('wafer-metric').add(new Option('Simulation', 'simulation'));
   const heightLabel = document.createElement('label'); heightLabel.innerHTML = 'CELL HEIGHT<select id="wafer-height"></select>';
   container.querySelector('.wafer-filters').append(heightLabel);
-  const metric = () => METRICS[get('wafer-metric').value];
+  const metric = () => ({ ...METRICS[get('wafer-metric').value], label: metricLabel(get('wafer-metric').value, METRICS[get('wafer-metric').value].label) });
+  const format = value => metricNumber(value, get('wafer-metric').value, metric().digits);
+  const ratioMode = () => get('wafer-metric').value === 'ratio';
+  const colorbar = container.querySelector('.wafer-colorbar');
+  const midpoint = document.createElement('span');
+  midpoint.className = 'wafer-scale-midpoint';
+  midpoint.textContent = '1.0';
+  colorbar.append(midpoint);
+  mountFrequencyUnit(container.querySelector('.wafer-filters'), 'wafer-frequency-unit');
+  window.addEventListener('frequency-unit-change', () => {
+    // Keep the physical locked range while its input values change units.
+    if (get('wafer-lock').checked && isFrequency(get('wafer-metric').value)) {
+      get('wafer-min').value = displayFrequency(minimum);
+      get('wafer-max').value = displayFrequency(maximum);
+    }
+    render();
+  });
   const addOptions = (id, values, preferred) => {
     const select = get(id); select.replaceChildren();
     for (const value of values) select.add(new Option(value, value));
@@ -76,12 +112,12 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     }
     get('wafer-die').value = rows.some(row => keyOf(row) === selected) ? selected : '';
     const row = rows.find(record => keyOf(record) === selected);
-    setList('wafer-selected', row ? [['Die', row.die_id], ['Voltage', `${row.vdd_v} V`], ['X / Y', `${row.wafer_x} / ${row.wafer_y}`], ['Ratio', row.silicon_sim_ratio.toFixed(5)], ['Frequency', `${row.silicon_mean_frequency_mhz.toFixed(2)} MHz`], ['Simulation', `${row.simulation_frequency_mhz.toFixed(2)} MHz`], ['Repeated readings', row.repeat_count]] : [['Selection', selected ? '所选 die 不在当前 wafer/cell' : '点击 die 查看数值']]);
+    setList('wafer-selected', row ? [['Die', row.die_id], ['Voltage', `${row.vdd_v} V`], ['X / Y', `${row.wafer_x} / ${row.wafer_y}`], ['Ratio', row.silicon_sim_ratio.toFixed(5)], ['Frequency', `${frequencyText(row.silicon_mean_frequency_mhz)}`], ['Simulation', `${frequencyText(row.simulation_frequency_mhz)}`], ['Repeated readings', row.repeat_count]] : [['Selection', selected ? '所选 die 不在当前 wafer/cell' : '点击 die 查看数值']]);
   }
   function select(key) { onSelect(key); highlight(key); }
   function tooltip(event, row) {
     const tip = get('tooltip'); tip.replaceChildren();
-    for (const line of [row.die_id, row.ro_id, `Voltage: ${row.vdd_v} V`, `X / Y: ${row.wafer_x} / ${row.wafer_y}`, `Ratio: ${row.silicon_sim_ratio.toFixed(5)}`, `Frequency: ${row.silicon_mean_frequency_mhz.toFixed(2)} MHz`, `Simulation: ${row.simulation_frequency_mhz.toFixed(2)} MHz`, `Repeated readings: ${row.repeat_count}`]) {
+    for (const line of [row.die_id, row.ro_id, `Voltage: ${row.vdd_v} V`, `X / Y: ${row.wafer_x} / ${row.wafer_y}`, `Ratio: ${row.silicon_sim_ratio.toFixed(5)}`, `Frequency: ${frequencyText(row.silicon_mean_frequency_mhz)}`, `Simulation: ${frequencyText(row.simulation_frequency_mhz)}`, `Repeated readings: ${row.repeat_count}`]) {
       const item = document.createElement('div'); item.textContent = line; tip.append(item);
     }
     tip.hidden = false;
@@ -93,6 +129,7 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
   function render() {
     const svg = get('wafer-map'); svg.replaceChildren(); get('tooltip').hidden = true;
     get('wafer-csv').disabled = true; get('wafer-svg').disabled = true;
+    colorbar.parentElement.hidden = true;
     const config = metric();
     document.querySelector('.environment').textContent = `${get('wafer-voltage').value} V · ${typeof dataset.metadata.temperature_c === 'number' ? `${dataset.metadata.temperature_c}°C` : '温度未提供'} · ${dataset.metadata.corner === '未提供' ? 'Corner 未提供' : dataset.metadata.corner}`;
     rows = subset().filter(row => row.ro_id === get('wafer-ro').value);
@@ -108,18 +145,36 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     const lock = get('wafer-lock').checked;
     if (!lock) {
       minimum = values[0]; maximum = values.at(-1);
-      if (minimum === maximum) { const padding = Math.abs(minimum) * 0.01 || 0.01; minimum -= padding; maximum += padding; }
-      get('wafer-min').value = minimum.toPrecision(8); get('wafer-max').value = maximum.toPrecision(8);
+      if (ratioMode()) {
+        const radius = Math.max(1 - minimum, maximum - 1, 0.0001);
+        minimum = Math.max(0, 1 - radius);
+        maximum = 1 + radius;
+      } else if (minimum === maximum) {
+        const padding = Math.abs(minimum) * 0.01 || 0.01;
+        minimum -= padding;
+        maximum += padding;
+      }
+      get('wafer-min').value = isFrequency(get('wafer-metric').value) ? displayFrequency(minimum) : minimum;
+      get('wafer-max').value = isFrequency(get('wafer-metric').value) ? displayFrequency(maximum) : maximum;
     } else {
       minimum = Number(get('wafer-min').value); maximum = Number(get('wafer-max').value);
+      if (isFrequency(get('wafer-metric').value)) { minimum = storedFrequency(minimum); maximum = storedFrequency(maximum); }
     }
-    const validRange = get('wafer-min').value !== '' && get('wafer-max').value !== '' && Number.isFinite(minimum) && Number.isFinite(maximum) && minimum < maximum;
+    const validRange = get('wafer-min').value !== '' && get('wafer-max').value !== '' && Number.isFinite(minimum) && Number.isFinite(maximum) && minimum < maximum && (!ratioMode() || (minimum < 1 && maximum > 1));
     get('wafer-range-error').hidden = validRange;
-    if (!validRange) { get('wafer-range-error').textContent = '请输入有效色阶：MIN 必须小于 MAX。'; return; }
+    if (!validRange) {
+      get('wafer-range-error').textContent = ratioMode() ? 'Ratio 色阶需要满足 MIN < 1 < MAX。' : '请输入有效色阶：MIN 必须小于 MAX。';
+      return;
+    }
     get('wafer-csv').disabled = false; get('wafer-svg').disabled = false;
     const outside = values.filter(value => value < minimum || value > maximum).length;
     get('wafer-scale-status').textContent = `${lock ? '固定色阶' : '自动色阶，仅适用于当前 cell'}${outside ? `；${outside} 个值超出范围，使用端点颜色` : ''}`;
-    get('wafer-scale-low').textContent = minimum.toFixed(config.digits); get('wafer-scale-high').textContent = maximum.toFixed(config.digits);
+    get('wafer-scale-low').textContent = format(minimum); get('wafer-scale-high').textContent = format(maximum);
+    const colors = colorScale(minimum, maximum, ratioMode());
+    colorbar.style.background = `linear-gradient(to right, ${colors.stops.map(([position, channels]) => `${rgb(channels)} ${position * 100}%`).join(', ')})`;
+    midpoint.hidden = !ratioMode();
+    if (ratioMode()) midpoint.style.left = `${colors.stops[1][0] * 100}%`;
+    colorbar.parentElement.hidden = false;
     const xs = allCoordinates.map(row => row.wafer_x).filter(Number.isFinite), ys = allCoordinates.map(row => row.wafer_y).filter(Number.isFinite);
     const uniqueX = [...new Set(xs)].sort((first, second) => first - second), uniqueY = [...new Set(ys)].sort((first, second) => first - second);
     const xLow = uniqueX[0], xHigh = uniqueX.at(-1), yLow = uniqueY[0], yHigh = uniqueY.at(-1);
@@ -136,10 +191,10 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     svg.append(element('text', { transform: 'translate(22 285) rotate(-90)', 'text-anchor': 'middle', fill: '#52647b', 'font-size': 15 }, 'Wafer Y (die grid)'));
     for (const row of rows) {
       const width = pitchX * scale * 0.93, height = pitchY * scale * 0.93;
-      const fill = color(row[config.field], minimum, maximum);
+      const { fill, text } = colors.tone(row[config.field]);
       const die = element('rect', { x: xMap(row.wafer_x) - width / 2, y: yMap(row.wafer_y) - height / 2,
         width, height, rx: 3, fill, stroke: '#ffffff', 'stroke-width': 1.5,
-        class: 'wafer-die', tabindex: 0, role: 'button', 'aria-label': `${row.die_id}, X ${row.wafer_x}, Y ${row.wafer_y}, ${config.label} ${row[config.field]}` });
+        class: 'wafer-die', tabindex: 0, role: 'button', 'aria-label': `${row.die_id}, X ${row.wafer_x}, Y ${row.wafer_y}, ${config.label} ${format(row[config.field])}` });
       die.dataset.die = keyOf(row); die.dataset.value = row[config.field];
       die.addEventListener('pointerenter', event => tooltip(event, row)); die.addEventListener('pointermove', event => tooltip(event, row));
       die.addEventListener('pointerleave', () => { get('tooltip').hidden = true; });
@@ -148,15 +203,14 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
       die.addEventListener('keydown', event => { if (['Enter', ' '].includes(event.key)) { event.preventDefault(); select(keyOf(row)); } });
       svg.append(die);
       if (width > 30 && height > 25) {
-        const fraction = Math.max(0, Math.min(1, (row[config.field] - minimum) / (maximum - minimum)));
-        svg.append(element('text', { x: xMap(row.wafer_x), y: yMap(row.wafer_y) + 4, 'text-anchor': 'middle', fill: fraction > 0.56 ? '#ffffff' : '#27486a', 'font-size': 11, 'pointer-events': 'none' }, row.die_id));
+        svg.append(element('text', { x: xMap(row.wafer_x), y: yMap(row.wafer_y) + 4, 'text-anchor': 'middle', fill: text, 'font-size': 11, 'pointer-events': 'none' }, row.die_id));
       }
     }
     get('wafer-title').textContent = `${get('wafer-function').value} / ${get('wafer-vt').value} / ${get('wafer-drive').value} / ${get('wafer-height').value}`;
     get('wafer-subtitle').textContent = `${get('wafer-ro').value} · ${get('wafer-voltage').value} V · ${config.label}`;
     const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
     const median = values.length % 2 ? values[Math.floor(values.length / 2)] : (values[values.length / 2 - 1] + values[values.length / 2]) / 2;
-    setList('wafer-statistics', [['Observed die', rows.length], ['Minimum', values[0].toFixed(config.digits)], ['Median', median.toFixed(config.digits)], ['Mean', mean.toFixed(config.digits)], ['Maximum', values.at(-1).toFixed(config.digits)]]);
+    setList('wafer-statistics', [['Observed die', rows.length], ['Unit', isFrequency(get('wafer-metric').value) ? metric().label.match(/\(([^)]+)\)/)[1] : get('wafer-metric').value === 'ratio' ? 'Measure / Simulation' : '%'], ['Minimum', format(values[0])], ['Median', format(median)], ['Mean', format(mean)], ['Maximum', format(values.at(-1))]]);
     get('wafer-die').replaceChildren(new Option('未选择', ''));
     for (const row of [...rows].sort((first, second) => first.die_id.localeCompare(second.die_id))) get('wafer-die').add(new Option(row.die_id, keyOf(row)));
     get('wafer-condition').textContent = `${get('wafer-id').selectedOptions[0].textContent} · ${dataset.metadata.origin} · ${get('wafer-voltage').value} V / ${dataset.metadata.temperature_c}°C · ${dataset.metadata.corner} · ${dataset.metadata.simulation_version}`;
@@ -176,8 +230,8 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
   get('wafer-distribution').addEventListener('click', () => openDistribution({ function: get('wafer-function').value, vt: get('wafer-vt').value, drive: get('wafer-drive').value, cell_height: get('wafer-height').value, vdd_v: get('wafer-voltage').value, metric: get('wafer-metric').value }));
   get('wafer-csv').addEventListener('click', () => {
     const fields = ['lot_id', 'wafer_id', 'die_id', 'ro_id', 'function', 'vt', 'drive', 'cell_height', 'wafer_x', 'wafer_y', 'silicon_mean_frequency_mhz', 'simulation_frequency_mhz', 'silicon_sim_ratio', 'frequency_deviation_pct', 'repeat_count'];
-    const headers = [...fields, 'vdd_v', 'temperature_c', 'corner', 'simulation_version', 'layout_version', 'data_origin', 'color_metric', 'color_min', 'color_max'];
-    const content = [headers, ...rows.map(row => [...fields.map(field => row[field]), row.vdd_v, dataset.metadata.temperature_c, dataset.metadata.corner, dataset.metadata.simulation_version, dataset.metadata.layout_version, dataset.metadata.origin, get('wafer-metric').value, minimum, maximum])].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
+    const headers = [...fields, 'vdd_v', 'temperature_c', 'corner', 'simulation_version', 'layout_version', 'data_origin', 'color_metric', 'color_min', 'color_max', 'color_unit'];
+    const content = [headers, ...rows.map(row => [...fields.map(field => row[field]), row.vdd_v, dataset.metadata.temperature_c, dataset.metadata.corner, dataset.metadata.simulation_version, dataset.metadata.layout_version, dataset.metadata.origin, get('wafer-metric').value, minimum, maximum, isFrequency(get('wafer-metric').value) ? 'MHz' : get('wafer-metric').value === 'ratio' ? 'Measure/Simulation' : '%'])].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
     save('wafer_cell.csv', `\uFEFF${content}`, 'text/csv;charset=utf-8');
   });
   get('wafer-svg').addEventListener('click', () => {
@@ -187,8 +241,16 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
     svg.prepend(element('rect', { x: 0, y: -65, width: 720, height: 755, fill: '#ffffff' }));
     svg.append(element('text', { x: 60, y: -38, fill: '#23334b', 'font-size': 18 }, `${get('wafer-title').textContent} | ${metric().label}`));
     svg.append(element('text', { x: 60, y: -15, fill: '#52647b', 'font-size': 12 }, get('wafer-condition').textContent));
-    svg.append(element('text', { x: 60, y: 625, fill: '#52647b', 'font-size': 13 }, `Scale: ${minimum.toFixed(metric().digits)} (light) to ${maximum.toFixed(metric().digits)} (dark). No interpolation.`));
-    for (let index = 0; index < 80; index++) svg.append(element('rect', { x: 60 + index * 5, y: 640, width: 5.1, height: 16, fill: color(minimum + (maximum - minimum) * index / 79, minimum, maximum) }));
+    const scaleDescription = ratioMode()
+      ? `${format(minimum)} (blue) · 1.0 (neutral) · ${format(maximum)} (red)`
+      : `${format(minimum)} (light) to ${format(maximum)} (dark)`;
+    svg.append(element('text', { x: 60, y: 625, fill: '#52647b', 'font-size': 13 }, `Scale: ${scaleDescription}. No spatial interpolation.`));
+    const gradient = element('linearGradient', { id: 'wafer-export-gradient' });
+    for (const [position, channels] of colorScale(minimum, maximum, ratioMode()).stops) {
+      gradient.append(element('stop', { offset: position, 'stop-color': rgb(channels) }));
+    }
+    const definitions = element('defs'); definitions.append(gradient); svg.append(definitions);
+    svg.append(element('rect', { x: 60, y: 640, width: 400, height: 16, fill: 'url(#wafer-export-gradient)' }));
     save('wafer_cell.svg', new XMLSerializer().serializeToString(svg), 'image/svg+xml');
   });
   updateRO();
