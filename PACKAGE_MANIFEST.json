@@ -1,5 +1,5 @@
 {
-  "version": "silicon-lab-analysis-csv-v4.3",
+  "version": "silicon-lab-analysis-csv-v4.4",
   "saved_date": "2026-11-28",
   "python": "3.10+",
   "sole_input": "analysis_1.csv",
@@ -8,15 +8,15 @@
     "START_LINUX.sh": "4925f9c51d62b328173aaa17e00aa8889d4da2259de0d994b8bd100c6eadad09",
     "START_MAC.command": "6689ffdda44977f85d039a38723447c1410f117f9e41b68c336f3190cfc7a7b1",
     "START_WINDOWS.bat": "a1b43cbb6c6abfb3921c119de24c96ca0ae22bac39430454c9a290e4d571d9b4",
-    "USER_GUIDE.md": "056e54e52fc40c215409f8dcc9624cc5f900394361446be8f521c47a2cb4b8ed",
+    "USER_GUIDE.md": "60c55ecd6a413229df9f0df443dcae5b2fd5a1a6eb7915c245072dd1807f1084",
     "analysis_1.csv": "9bb32d59096335d4fd8a8c8bc2b7055e7649e1dd75050ac3c91c0b2c17ec3abf",
     "platform/dist/app.js": "a8788daaed40ce5f6bae2b5c84630eb93657d25d512382c8c3ad89194387328a",
     "platform/dist/frequency.js": "94b60600f5e4c4c91e8b71a4bcf4f3889ce4e782fa986d748a81bee4f887e217",
     "platform/dist/index.html": "8c5cb5bfecec461bad2786bf2f5f6eedfa0e159528ed103f038d7939ccec0dd4",
     "platform/dist/styles.css": "7f15368fb2e94f58bbb1d042be4c4b972ca41185def19e7562b76681defde987",
     "platform/dist/wafer.css": "377aa34c44b0ef47f3d85d543edd2b6a005b437ec09c8991f3f19c882a8f124f",
-    "platform/dist/wafer.js": "05a17d37e71ab3e5143566faf0cbffcee3476a8e9c713bfc4ae393320a0ceb50",
+    "platform/dist/wafer.js": "2d66dac430cd38cce941c58cbfe5d9e6c5622404228046ae345f15fc65fb8c55",
     "run.py": "8003b1db86eea1539954e2e1052b7f46e08ff99efb8ec1b10d1999d1e6479e75",
-    "scripts/import_analysis_matrix.py": "3f6190f80867827ac7979a5aacfddea591a94d89188a42a92a101e7b4bddddcf"
+    "scripts/import_analysis_matrix.py": "17918bf0e3acbef130e84fd93f36df8958c1a11de442c4074edaa0ad35659110"
   }
 }

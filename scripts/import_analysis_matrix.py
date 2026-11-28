@@ -6,10 +6,16 @@ import re
 import statistics
 from collections import defaultdict
 from decimal import Decimal
+from itertools import combinations
 from pathlib import Path
 
 
-PATTERN = re.compile(r'^(?P<function>[^_]+)_(?P<vt>[^_]+)_(?P<drive>[^_]+)_(?P<cell_height>H[^_]+)_(?P<voltage>\d+P\d+V)_(?P<kind>Simulation|Measure|Ratio)$')
+PATTERN = re.compile(
+    r'(?P<function>[^_]+)_(?P<vt>[^_]+)_(?P<drive>[^_]+)_'
+    r'(?P<cell_height>[^_]+(?:_[^_]+)*)_'
+    r'(?P<voltage>\d+[.P]\d+)V_(?P<kind>Simulation|Measure|Ratio)'
+)
+RO_FIELDS = ('function', 'vt', 'drive', 'cell_height')
 
 
 def number(value, positive=False):
@@ -38,10 +44,15 @@ def main(source, output, web_data):
         parsed = PATTERN.fullmatch(name)
         if parsed:
             parts = parsed.groupdict()
+            parts['cell_height'] = parts['cell_height'].strip()
+            if not parts['cell_height']:
+                raise ValueError(f'Missing cell height: {name}')
+            voltage = number(parts['voltage'].replace('P', '.'), True)
+            ro = tuple(parts[field] for field in RO_FIELDS)
             stem = name.rsplit('_', 1)[0]
-            group = groups.setdefault(stem, {'parts': parts, 'rows': {}})
+            group = groups.setdefault((*ro, voltage), {'stem': stem, 'parts': parts, 'rows': {}})
             if parts['kind'] in group['rows']:
-                raise ValueError(f'Duplicate parameter: {name}')
+                raise ValueError(f'Duplicate parameter for the same RO and voltage: {name}')
             group['rows'][parts['kind']] = row
         elif re.search(r'_(Simulation|Measure|Ratio)$', name):
             raise ValueError(f'Unrecognized measurement parameter: {name}')
@@ -65,12 +76,13 @@ def main(source, output, web_data):
     records, checks = [], []
     factors = {'hz': Decimal('0.000001'), 'khz': Decimal('0.001'), 'mhz': Decimal(1), 'ghz': Decimal(1000)}
     skipped = 0
-    for stem, group in groups.items():
+    for config, group in groups.items():
+        stem = group['stem']
         if set(group['rows']) != {'Simulation', 'Measure', 'Ratio'}:
             raise ValueError(f'Incomplete triplet: {stem}')
         parts = group['parts']
-        voltage = number(parts['voltage'][:-1].replace('P', '.'), True)
-        ro_id = '_'.join(parts[field] for field in ['function', 'vt', 'drive', 'cell_height'])
+        voltage = config[-1]
+        ro_id = '_'.join(config[:-1])
         for pid in pids:
             values = {kind: row[pid].strip() for kind, row in group['rows'].items()}
             if not any(values.values()):
@@ -94,7 +106,7 @@ def main(source, output, web_data):
             records.append({
                 'lot_id': metadata['LOT_ID'][pid], 'wafer_id': metadata['WAFER_ID'][pid],
                 'die_id': pid, 'ro_id': ro_id,
-                **{field: parts[field] for field in ['function', 'vt', 'drive', 'cell_height']},
+                **{field: parts[field] for field in RO_FIELDS},
                 'vdd_v': float(voltage), 'wafer_x': float(number(metadata['DIE_X'][pid])),
                 'wafer_y': float(number(metadata['DIE_Y'][pid])),
                 'silicon_mean_frequency_mhz': float(frequencies['Measure']),
@@ -130,20 +142,26 @@ def main(source, output, web_data):
         pairs[key][row['cell_height']] = row
     comparisons = defaultdict(list)
     for key, heights in pairs.items():
-        if 'H243' in heights and 'H300' in heights:
-            first, second = heights['H243'], heights['H300']
-            comparisons[key[3:]].append((second['silicon_mean_frequency_mhz'] / first['silicon_mean_frequency_mhz'],
-                                         second['simulation_frequency_mhz'] / first['simulation_frequency_mhz'],
-                                         second['silicon_sim_ratio'] / first['silicon_sim_ratio']))
+        for baseline, target in combinations(sorted(heights), 2):
+            first, second = heights[baseline], heights[target]
+            comparisons[(*key[3:], baseline, target)].append((
+                second['silicon_mean_frequency_mhz'] / first['silicon_mean_frequency_mhz'],
+                second['simulation_frequency_mhz'] / first['simulation_frequency_mhz'],
+                second['silicon_sim_ratio'] / first['silicon_sim_ratio'],
+            ))
     compared = []
+    comparison_fields = ['function', 'vt', 'drive', 'vdd_v', 'baseline_height', 'target_height']
     for key, values in comparisons.items():
-        compared.append(dict(zip(['function', 'vt', 'drive', 'vdd_v'], key), paired_die_count=len(values),
+        compared.append(dict(zip(comparison_fields, key), paired_die_count=len(values),
                              mean_silicon_gain_pct=100 * (statistics.mean(value[0] for value in values) - 1),
                              mean_simulation_gain_pct=100 * (statistics.mean(value[1] for value in values) - 1),
                              mean_ratio_relative_change_pct=100 * (statistics.mean(value[2] for value in values) - 1)))
-    if compared:
-        with (output / 'height_comparison.csv').open('w', encoding='utf-8-sig', newline='') as stream:
-            writer = csv.DictWriter(stream, fieldnames=list(compared[0])); writer.writeheader(); writer.writerows(compared)
+    with (output / 'height_comparison.csv').open('w', encoding='utf-8-sig', newline='') as stream:
+        fields = [*comparison_fields, 'paired_die_count', 'mean_silicon_gain_pct',
+                  'mean_simulation_gain_pct', 'mean_ratio_relative_change_pct']
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(compared)
     report_lines = [f'唯一输入：{source.resolve()}', f'SHA256：{validation["source_sha256"]}',
                     f'独立 die：{len(pids)}；RO（含 height）：{validation["unique_ro_types"]}；cell/voltage 配置：{len(groups)}；观测数：{len(records)}',
                     f'Ratio 核对通过：{len(checks)}；电压：{voltages} V。',
@@ -152,7 +170,7 @@ def main(source, output, web_data):
                     'PID 是源 CSV 的样品列身份，未借用外部 PID 对照表。',
                     'Height 对比是配对描述统计；数据来源及物理原因无法仅由数值确认。']
     if compared:
-        report_lines.append(f'H300 对 H243：{len(compared)} 个配对配置；平均实测增益 {statistics.mean(row["mean_silicon_gain_pct"] for row in compared):.6f}%；仿真增益 {statistics.mean(row["mean_simulation_gain_pct"] for row in compared):.6f}%；ratio 相对变化 {statistics.mean(row["mean_ratio_relative_change_pct"] for row in compared):.6f}%。')
+        report_lines.append(f'已输出 {len(compared)} 条 height 配对统计，比较方向见 baseline_height 和 target_height。')
     (output / 'analysis_report.txt').write_text('\n'.join(report_lines) + '\n', encoding='utf-8')
     (output / 'validation_report.json').write_text(json.dumps(validation, ensure_ascii=False, indent=2), encoding='utf-8')
     web_data.parent.mkdir(parents=True, exist_ok=True)

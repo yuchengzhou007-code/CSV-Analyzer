@@ -2,7 +2,7 @@
 
 本地 Post-Silicon Ring Oscillator 分析平台。以单份 `analysis_1.csv` 参数矩阵为数据输入，支持不同 Function、VT、Drive、Cell height 与 Voltage 的比较。
 
-## 功能（v4.3）
+## 功能（v4.4）
 
 - 箱线图与 P-plot 并列，支持 **Simulation、Measure、Ratio、Deviation** 四种 metric。
 - Function、VT、Drive、Cell height、Voltage 可在各自的下拉框内搜索、单选、多选或全选。切换 Group by 会保留各维度的勾选。
@@ -11,6 +11,8 @@
 - Wafer view 支持锁定色阶和 die 选择联动。Ratio 以 1.0 为浅灰中点，低于 1 越低越蓝，高于 1 越高越红。
 - 图表和 Wafer view 支持切换 Hz、kHz、MHz、GHz。
 - CSV 与 SVG 导出、输入 ratio 核对。
+- 电压兼容 `0.75V` 和 `0P75V`，同一配置的三种 metric 可以混用写法。
+- Cell height 按输入标签识别，支持 `6T`、`7.5T`、`LIB_8T` 等类型。Height 配对报告按实际标签生成，并标明比较方向。
 
 ## 启动
 

@@ -88,7 +88,7 @@ export function createWaferView(dataset, onSelect, readSelection, openDistributi
   }
   const voltages = [...new Set(dataset.records.map(row => String(row.vdd_v)))].sort((first, second) => Number(first) - Number(second));
   addOptions('wafer-voltage', voltages, String(dataset.metadata.vdd_v));
-  addOptions('wafer-height', [...new Set(dataset.records.map(row => row.cell_height || '未提供'))].sort(), 'H243');
+  addOptions('wafer-height', [...new Set(dataset.records.map(row => row.cell_height || '未提供'))].sort());
   function subset() {
     return dataset.records.filter(row => waferOf(row) === get('wafer-id').value && String(row.vdd_v) === get('wafer-voltage').value && (row.cell_height || '未提供') === get('wafer-height').value && ['function', 'vt', 'drive'].every(dimension => row[dimension] === get(`wafer-${dimension}`).value));
   }

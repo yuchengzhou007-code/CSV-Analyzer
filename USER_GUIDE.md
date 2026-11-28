@@ -1,6 +1,6 @@
 # Silicon Lab — analysis_1.csv 单输入便携版
 
-版本：2026-11-28 matrix v4.3。本包支持 Simulation/Measure/Ratio/Deviation 四种metric、下拉框内跨维度组合多选、Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
+版本：2026-11-28 matrix v4.4。本包支持 Simulation/Measure/Ratio/Deviation 四种metric、下拉框内跨维度组合多选、Cell height、Voltage、Function、VT、Drive、箱线图、P-plot、voltage sweep 和 Wafer view。
 
 点击 Function / VT / Drive / Cell height / Voltage 下拉框，直接在里面勾选多个值；支持搜索、全选、清空和勾选搜索结果。点击外部或按 Esc 收起，各维度可独立组合；完整配置分别成组。
 
@@ -93,11 +93,11 @@ ND2_SVT_D1_H243_0P75V_Ratio,,%,,,101.10,101.10,101.10
 | Function | ND2、ND3、NR2、INV；单个字段内不能有下划线 |
 | VT | SVT、LVTLL、LVT、ULVTLL、ULVT、ELVT，按输入读取 |
 | Drive | D1/D2/D4，或其他输入标识，按输入读取 |
-| Cell height | H243/H300；必须以 H 开头，保留标签，不假定长度单位 |
-| Voltage | 0P55V、0P75V、0P80V、1P10V；P 代表小数点 |
+| Cell height | 例如 H243、6T、7.5T、LIB_8T；按输入标签读取，支持下划线 |
+| Voltage | 例如 0.75V、0P75V。两者都识别为 0.75 V，同一配置的三行可以混用写法 |
 | Kind | 严格为 Simulation、Measure、Ratio |
 
-同一配置的三行必须齐全，参数名必须唯一。不要用同名参数表示多次重复测量；当前格式没有 repeat ID，无法分辨它们。
+同一配置的 Simulation、Measure 和 Ratio 三行必须齐全。按电压数值匹配，每种 Kind 只能出现一次，例如同一 cell 的 `0.75V_Measure` 和 `0P75V_Measure` 会被识别为重复。
 
 ### 单位及比值
 
@@ -150,11 +150,11 @@ runtime/
     ratio_checks.csv           输入/重算ratio核对
     validation_report.json     输入路径、SHA256、样本与观测计数
     analysis_report.txt        分析摘要及未知条件说明
-    height_comparison.csv      若存在H243/H300配对则输出描述统计
+    height_comparison.csv      从输入识别 height 标签，输出各配对的描述统计
   web/                        本次页面及生成数据
 ```
 
-当前height配对统计专门输出H300相对H243，其他height仍可在页面中分组比较。报告不是物理工艺归因。
+Height 配对固定 Function、VT、Drive 和 Voltage，仅使用两种 height 都有数据的同一 die。所有可配对的 height 组合都会输出，按标签排序确定 `baseline_height` 和 `target_height`，增益以 baseline 为分母。无可配对数据时，文件只含表头。
 
 同一output目录会更新同名结果。不同批次建议用不同目录，避免将旧批次输出误认为新结果。原CSV不会被修改。
 
